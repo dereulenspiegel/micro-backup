@@ -1,0 +1,16 @@
+componentConfig: true
+domain: k8s.akuz.de
+layout:
+- go.kubebuilder.io/v3
+projectName: micro-backup
+repo: github.com/dereulenspiegel/micro-backup
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: k8s.akuz.de
+  group: backup
+  kind: Repo
+  path: github.com/dereulenspiegel/micro-backup/api/v1alpha1
+  version: v1alpha1
+version: "3"
