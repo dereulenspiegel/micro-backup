@@ -23,19 +23,16 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// RepoSpec defines the desired state of Repo
+// +kubebuilder:object:root=true
 type RepoSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Repo. Edit repo_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// RepoStatus defines the observed state of Repo
-type RepoStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Url string `json:"url"`
+	// +optional
+	UrlSecretName *string `json:"urlSecretName,omitempty"`
+	// +optional
+	EnvSecretName *string `json:"envSecretName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -46,8 +43,7 @@ type Repo struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RepoSpec   `json:"spec,omitempty"`
-	Status RepoStatus `json:"status,omitempty"`
+	Spec RepoSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true

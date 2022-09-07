@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the backup v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=backup.k8s.akuz.de
+// +kubebuilder:object:generate=true
+// +groupName=backup.k8s.akuz.de
 package v1alpha1
 
 import (
