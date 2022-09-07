@@ -29,11 +29,32 @@ type JobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Schedule string                `json:"schedule"`
+	// Cron schedule
+	Schedule string `json:"schedule"`
+	// Which PVC to select based on labels
 	Selector *metav1.LabelSelector `json:"selector"`
 	RepoName string                `json:"repoName"`
 	// +optional
 	Suspend *bool `json:"suspend,omitempty"`
+	// +optional
+	Forget *Forget `json:"forget,omitempty"`
+}
+
+type Forget struct {
+	// +optional
+	Prune *bool `json:"prune,omitempty"`
+	// +optional
+	KeepLast *int `json:"keepLast,omitempty"`
+	// +optional
+	KeepHourly *int `json:"keepHourly,omitempty"`
+	// +optional
+	KeepDaily *int `json:"keepDaily,omitempty"`
+	// +optional
+	KeepWeekly *int `json:"keepWeekly,omitempty"`
+	// +optional
+	KeepMonthly *int `json:"keepMonthly,omitempty"`
+	// +optional
+	KeepYearly *int `json:"keepYearly,omitempty"`
 }
 
 // JobStatus defines the observed state of Job
