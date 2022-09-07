@@ -31,6 +31,7 @@ type JobSpec struct {
 
 	Schedule string                `json:"schedule"`
 	Selector *metav1.LabelSelector `json:"selector"`
+	RepoName string                `json:"repoName"`
 	// +optional
 	Suspend *bool `json:"suspend,omitempty"`
 }
