@@ -61,10 +61,17 @@ type Forget struct {
 type JobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
+	Running bool `json:"running"`
 	// +optional
-	Active []corev1.ObjectReference `json:"active,omitempty"`
-
+	ActiveJobs []corev1.ObjectReference `json:"activeJobs,omitempty"`
+	// +optional
+	FailedJobs []corev1.ObjectReference `json:"failedJobs,omitempty"`
+	// +optional
+	BackedUp []corev1.ObjectReference `json:"backedUp,omitempty"`
+	// +optional
+	WaitingForBackup []corev1.ObjectReference `json:"waitingForBackup,omitempty"`
+	// +optional
+	LastRunTime *metav1.Time `json:"lastRunTime,omitempty"`
 	// Information when was the last time the job was successfully scheduled.
 	// +optional
 	LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
