@@ -49,7 +49,8 @@ var (
 )
 
 type JobControllerOptions struct {
-	KubeletPath string
+	KubeletPath    string
+	ContainerImage string
 }
 
 type backupTarget struct {
@@ -385,7 +386,7 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 					Containers: []v1.Container{
 						{
 							Name:    "restic",
-							Image:   "tbd",
+							Image:   r.opts.ContainerImage,
 							Command: []string{"tbd"},
 							VolumeMounts: []v1.VolumeMount{
 								{
