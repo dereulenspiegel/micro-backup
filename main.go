@@ -50,10 +50,12 @@ func init() {
 
 func main() {
 	var configFile string
+	var jobControllerOpts controllers.JobControllerOptions
 	flag.StringVar(&configFile, "config", "",
 		"The controller will load its initial configuration from this file. "+
 			"Omit this flag to use the default configuration values. "+
 			"Command-line flags override configuration from this file.")
+	flag.StringVar(&jobControllerOpts.KubeletPath, "kubelet-path", "/var/lib/kubelet", "Specify the path to the kubelet")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -81,7 +83,7 @@ func main() {
 	if err = (&controllers.JobReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, &jobControllerOpts); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Job")
 		os.Exit(1)
 	}

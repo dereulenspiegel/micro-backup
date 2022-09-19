@@ -44,7 +44,13 @@ var (
 	jobOwnerKey             = ".metadata.controller"
 	apiGVStr                = backupv1alpha1.GroupVersion.String()
 	scheduledTimeAnnotation = "backup.k8s.akuz.de/scheduled-at"
+	// /var/snap/microk8s/common/var/lib/kubelet/pods/1c020433-11b9-4d8b-9d45-53994c57fc2d/volumes/kubernetes.io~csi/pvc-3b74c46f-6227-48c4-9fef-10b431d2bfa3/mount/
+	pvcPathPattern = "%s/pods/%s/volumes/kubernetes.io~csi/pvc-%s/mount"
 )
+
+type JobControllerOptions struct {
+	KubeletPath string
+}
 
 type backupTarget struct {
 	pod *v1.Pod
@@ -64,6 +70,7 @@ type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	Clock
+	opts *JobControllerOptions
 }
 
 //+kubebuilder:rbac:groups=backup.k8s.akuz.de,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -335,6 +342,7 @@ func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.L
 func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.Job, bt backupTarget) (*batch.Job, error) {
 	name := fmt.Sprintf("%s-%s-%d", backupJob.Name, bt.pvc.Name, time.Now().Unix())
 
+	pvcHostPath := fmt.Sprintf(pvcPathPattern, r.opts.KubeletPath, bt.pod.ObjectMeta.UID, bt.pvc.ObjectMeta.UID)
 	backoffLimit := int32(1)
 	runAsNoNRoot := true
 	job := &batch.Job{
@@ -365,9 +373,8 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 						{
 							Name: "targetPvc",
 							VolumeSource: v1.VolumeSource{
-								PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-									ClaimName: bt.pvc.Name,
-									ReadOnly:  true,
+								HostPath: &v1.HostPathVolumeSource{
+									Path: pvcHostPath,
 								},
 							},
 						},
@@ -437,10 +444,11 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 // }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager, opts *JobControllerOptions) error {
 	if r.Clock == nil {
 		r.Clock = realClock{}
 	}
+	r.opts = opts
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batch.Job{}, jobOwnerKey, func(rawObj client.Object) []string {
 		job := rawObj.(*batch.Job)
