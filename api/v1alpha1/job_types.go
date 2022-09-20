@@ -67,7 +67,7 @@ type JobStatus struct {
 	// +optional
 	FailedJobs []corev1.ObjectReference `json:"failedJobs,omitempty"`
 	// +optional
-	SuccessfulJobs []corev1.ObjectReference `json:"successfulJobs,omitempty`
+	SuccessfulJobs []corev1.ObjectReference `json:"successfulJobs,omitempty"`
 	// +optional
 	BackedUp []corev1.ObjectReference `json:"backedUp,omitempty"`
 	// +optional
