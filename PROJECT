@@ -22,4 +22,13 @@ resources:
   kind: Job
   path: github.com/dereulenspiegel/micro-backup/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: k8s.akuz.de
+  group: backup
+  kind: Schedule
+  path: github.com/dereulenspiegel/micro-backup/api/v1alpha1
+  version: v1alpha1
 version: "3"

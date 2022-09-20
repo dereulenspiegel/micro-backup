@@ -29,13 +29,13 @@ type JobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Cron schedule
-	Schedule string `json:"schedule"`
 	// Which PVC to select based on labels
 	Selector *metav1.LabelSelector `json:"selector"`
-	RepoName string                `json:"repoName"`
 	// +optional
-	Suspend *bool `json:"suspend,omitempty"`
+	KeepFailed *bool `json:"keepFailed,omitempty"`
+	// +optional
+	KeepSuccessful *bool  `json:"keepSuccessful,omitempty"`
+	RepoName       string `json:"repoName"`
 	// +optional
 	Forget *Forget `json:"forget,omitempty"`
 }
@@ -67,14 +67,11 @@ type JobStatus struct {
 	// +optional
 	FailedJobs []corev1.ObjectReference `json:"failedJobs,omitempty"`
 	// +optional
+	SuccessfulJobs []corev1.ObjectReference `json:"successfulJobs,omitempty`
+	// +optional
 	BackedUp []corev1.ObjectReference `json:"backedUp,omitempty"`
 	// +optional
 	WaitingForBackup []corev1.ObjectReference `json:"waitingForBackup,omitempty"`
-	// +optional
-	LastRunTime *metav1.Time `json:"lastRunTime,omitempty"`
-	// Information when was the last time the job was successfully scheduled.
-	// +optional
-	LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
 }
 
 //+kubebuilder:object:root=true

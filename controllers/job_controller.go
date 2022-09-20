@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/robfig/cron"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ref "k8s.io/client-go/tools/reference"
@@ -58,20 +57,11 @@ type backupTarget struct {
 	pvc *v1.PersistentVolumeClaim
 }
 
-type Clock interface {
-	Now() time.Time
-}
-
-type realClock struct{}
-
-func (_ realClock) Now() time.Time { return time.Now() }
-
 // JobReconciler reconciles a Job object
 type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Clock
-	opts *JobControllerOptions
+	opts   *JobControllerOptions
 }
 
 //+kubebuilder:rbac:groups=backup.k8s.akuz.de,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -129,31 +119,10 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	missedRun, nextRun, err := r.getNextSchedule(&backupJob, r.Now())
-	if err != nil {
-		logger.Error(err, "unable to figure out CronJob schedule", "schedule", backupJob.Spec.Schedule)
-		return ctrl.Result{}, nil
+	if !backupJob.Status.Running && len(activeJobs) > 0 {
+		logger.Error(errors.New("not running, but jobs active"), "backup job is not running, but there are active jobs", "activeJobs", len(activeJobs))
 	}
 
-	scheduledResult := ctrl.Result{RequeueAfter: nextRun.Sub(r.Now())} // save this so we can re-use it elsewhere
-
-	if !backupJob.Status.Running {
-		if len(activeJobs) > 0 {
-			logger.Error(errors.New("not running, but jobs active"), "backup job is not running, but there are active jobs", "activeJobs", len(activeJobs))
-		}
-
-		if missedRun.IsZero() {
-			logger.Info("no upcoming scheduled times, sleeping until next")
-			return scheduledResult, nil
-		} else {
-			backupJob.Status.Running = true
-		}
-	}
-
-	if backupJob.Spec.Suspend != nil && *backupJob.Spec.Suspend {
-		logger.Info("backup job is suspended")
-		return ctrl.Result{}, nil
-	}
 	backupJob.Status.Running = true
 
 	var backupTargets []backupTarget
@@ -163,7 +132,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		backupTargets, err = r.discoverBackupTargets(ctx, logger, req, &backupJob)
 		if err != nil {
 			logger.Error(err, "failed to query backup targets")
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		for _, backupTarget := range backupTargets {
 			pvcRef, err := ref.GetReference(r.Scheme, backupTarget.pvc)
@@ -186,12 +155,19 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	for _, failedJob := range failedJobs {
-		jobRef, err := ref.GetReference(r.Scheme, failedJob)
-		if err != nil {
-			logger.Error(err, "unable to make reference to failed job", "job", failedJob)
-			continue
+		if backupJob.Spec.KeepFailed != nil && *backupJob.Spec.KeepFailed {
+			jobRef, err := ref.GetReference(r.Scheme, failedJob)
+			if err != nil {
+				logger.Error(err, "unable to make reference to failed job", "job", failedJob)
+				continue
+			}
+			backupJob.Status.FailedJobs = append(backupJob.Status.FailedJobs, *jobRef)
+		} else {
+			if err := r.Delete(ctx, failedJob, client.PropagationPolicy(metav1.DeletePropagationBackground)); client.IgnoreNotFound(err) != nil {
+				logger.Error(err, "unable tod delete failed batch job", "job", failedJob)
+				continue
+			}
 		}
-		backupJob.Status.FailedJobs = append(backupJob.Status.FailedJobs, *jobRef)
 	}
 	logger.Info("job count", "activeJobs", len(activeJobs), "successfulJobs", len(successfulJobs), "failedJobs", len(failedJobs))
 
@@ -212,8 +188,18 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 				break
 			}
 		}
-		if err := r.Delete(ctx, successfulJob, client.PropagationPolicy(metav1.DeletePropagationBackground)); client.IgnoreNotFound(err) != nil {
-			logger.Error(err, "failed to delete successful job", "job", successfulJob)
+		if backupJob.Spec.KeepSuccessful != nil && *backupJob.Spec.KeepSuccessful {
+			jobRef, err := ref.GetReference(r.Scheme, successfulJob)
+			if err != nil {
+				logger.Error(err, "unable to make reference to successful job")
+				continue
+			}
+			backupJob.Status.SuccessfulJobs = append(backupJob.Status.SuccessfulJobs, *jobRef)
+		} else {
+			if err := r.Delete(ctx, successfulJob, client.PropagationPolicy(metav1.DeletePropagationBackground)); client.IgnoreNotFound(err) != nil {
+				logger.Error(err, "unable tod delete successful batch job", "job", successfulJob)
+				continue
+			}
 		}
 	}
 
@@ -235,17 +221,17 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	if len(activeJobs) > 0 {
-		logger.Info("skipping current backup job execution as another job is still running", "activeJobs", len(activeJobs))
+		logger.Info("Requeuing as backuo jobs are still running", "activeJobs", len(activeJobs))
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if len(backupTargets) == 0 {
+		backupJob.Status.Running = false
 		if err := r.Status().Update(ctx, &backupJob); err != nil {
 			logger.Error(err, "unable to update BackupJob status")
 			return ctrl.Result{}, err
 		}
-		backupJob.Status.Running = false
-		return scheduledResult, nil
+		return ctrl.Result{}, nil
 	}
 
 	batchJob, err := r.constructBackupJob(ctx, logger, &backupJob, backupTargets[0])
@@ -270,36 +256,8 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		logger.Error(err, "unable to update BackupJob status")
 		return ctrl.Result{}, err
 	}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *JobReconciler) getNextSchedule(backupJob *backupv1alpha1.Job, now time.Time) (lastMissed time.Time, next time.Time, err error) {
-	sched, err := cron.ParseStandard(backupJob.Spec.Schedule)
-	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("unparseable schedule %q: %v", backupJob.Spec.Schedule, err)
-	}
-
-	var earliestTime time.Time
-	if backupJob.Status.LastScheduleTime != nil {
-		earliestTime = backupJob.Status.LastScheduleTime.Time
-	} else {
-		earliestTime = backupJob.ObjectMeta.CreationTimestamp.Time
-	}
-	if earliestTime.After(now) {
-		return time.Time{}, sched.Next(now), nil
-	}
-
-	starts := 0
-	for t := sched.Next(earliestTime); !t.After(now); t = sched.Next(t) {
-		lastMissed = t
-		starts++
-		if starts > 100 {
-			// We can't get the most recent times so just return an empty slice
-			return time.Time{}, time.Time{}, fmt.Errorf("Too many missed start times (> 100).")
-		}
-	}
-	return lastMissed, sched.Next(now), nil
+	// Requeue as this backup job has more backup targets
+	return ctrl.Result{Requeue: true}, nil
 }
 
 func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.Logger, req ctrl.Request, backupJob *backupv1alpha1.Job) (backupTargets []backupTarget, err error) {
@@ -446,9 +404,6 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager, opts *JobControllerOptions) error {
-	if r.Clock == nil {
-		r.Clock = realClock{}
-	}
 	r.opts = opts
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batch.Job{}, jobOwnerKey, func(rawObj client.Object) []string {
