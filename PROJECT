@@ -12,6 +12,7 @@ resources:
   group: backup
   kind: Repo
   path: github.com/dereulenspiegel/micro-backup/api/v1alpha1
+  plural: repos
   version: v1alpha1
 - api:
     crdVersion: v1
