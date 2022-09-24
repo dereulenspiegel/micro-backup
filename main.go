@@ -57,6 +57,7 @@ func main() {
 			"Command-line flags override configuration from this file.")
 	flag.StringVar(&jobControllerOpts.KubeletPath, "kubelet-path", "/var/lib/kubelet", "Specify the path to the kubelet")
 	flag.StringVar(&jobControllerOpts.ContainerImage, "backup-container-image", "restic/restic:0.14.0", "Container image to use for backups")
+	flag.StringVar(&jobControllerOpts.DefaultCommand, "backup-default-command", "restic --verbose backup /targetPvc", "Command to run by default in the backup container")
 	opts := zap.Options{
 		Development: true,
 	}

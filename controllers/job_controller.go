@@ -50,6 +50,7 @@ var (
 type JobControllerOptions struct {
 	KubeletPath    string
 	ContainerImage string
+	DefaultCommand string
 }
 
 type backupTarget struct {
@@ -301,6 +302,11 @@ func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.L
 func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.Job, bt backupTarget) (*batch.Job, error) {
 	name := fmt.Sprintf("%s-%s-%d", backupJob.Name, bt.pvc.Name, time.Now().Unix())
 
+	var backupRepo backupv1alpha1.Repo
+	if err := r.Get(ctx, types.NamespacedName{Namespace: backupJob.GetNamespace(), Name: backupJob.Spec.RepoName}, &backupRepo); err != nil {
+		logger.Error(err, "failed to find repo spec referenced in backup job", "repoName", backupJob.Spec.RepoName)
+		return nil, err
+	}
 	pvcHostPath := fmt.Sprintf(pvcPathPattern, r.opts.KubeletPath, bt.pod.ObjectMeta.UID, bt.pvc.ObjectMeta.UID)
 	backoffLimit := int32(1)
 	runAsNoNRoot := true
@@ -337,6 +343,18 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 								},
 							},
 						},
+						{
+							Name: "cache-dir",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "tmp-dir",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 					SecurityContext: &v1.PodSecurityContext{
 						RunAsNonRoot: &runAsNoNRoot,
@@ -345,12 +363,52 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 						{
 							Name:    "restic",
 							Image:   r.opts.ContainerImage,
-							Command: []string{"tbd"},
+							Command: []string{r.opts.DefaultCommand},
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "targetPvc",
 									ReadOnly:  true,
 									MountPath: "/targetPvc",
+								},
+								{
+									Name:      "tmp-dir",
+									ReadOnly:  false,
+									MountPath: "/tmp",
+								},
+								{
+									Name:      "cache-dir",
+									ReadOnly:  false,
+									MountPath: "/cache",
+								},
+							},
+							Env: []v1.EnvVar{
+								{
+									Name:  "RESTIC_REPOSITORY",
+									Value: backupRepo.Spec.Url,
+								},
+								{
+									Name:  "RESTIC_CACHE_DIR",
+									Value: "/cache",
+								},
+								{
+									Name:  "TMPDIR",
+									Value: "/tmp",
+								},
+							},
+							EnvFrom: []v1.EnvFromSource{
+								{
+									SecretRef: &v1.SecretEnvSource{
+										LocalObjectReference: v1.LocalObjectReference{
+											Name: *backupRepo.Spec.UrlSecretName,
+										},
+									},
+								},
+								{
+									SecretRef: &v1.SecretEnvSource{
+										LocalObjectReference: v1.LocalObjectReference{
+											Name: *backupRepo.Spec.EnvSecretName,
+										},
+									},
 								},
 							},
 							SecurityContext: &v1.SecurityContext{
