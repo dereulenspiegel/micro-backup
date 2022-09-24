@@ -88,7 +88,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	scheduledResult := ctrl.Result{RequeueAfter: nextRun.Sub(r.Now())} // save this so we can re-use it elsewhere
 
 	if schedule.Status.CurrentJob != nil {
-		var backupJob backupv1alpha1.Job
+		var backupJob backupv1alpha1.BackupJob
 		if err := r.Get(ctx, types.NamespacedName{
 			Namespace: schedule.Status.CurrentJob.Namespace,
 			Name:      schedule.Status.CurrentJob.Name}, &backupJob); err != nil {
@@ -129,7 +129,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	// We should create a new backup job
 
-	backupJob := &backupv1alpha1.Job{
+	backupJob := &backupv1alpha1.BackupJob{
 		Spec: schedule.Spec.Job,
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: schedule.ObjectMeta.Name,
@@ -181,7 +181,7 @@ func appendAndKeep[T any](sl []T, elem T, keep *int) ([]T, []T) {
 
 func (r *ScheduleReconciler) deleteBackupJobs(ctx context.Context, logger logr.Logger, backupJobRefs []corev1.ObjectReference) error {
 	for _, backupJobRef := range backupJobRefs {
-		var backupJob backupv1alpha1.Job
+		var backupJob backupv1alpha1.BackupJob
 		if err := r.Get(ctx, types.NamespacedName{Name: backupJob.Name, Namespace: backupJobRef.Namespace}, &backupJob); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				continue

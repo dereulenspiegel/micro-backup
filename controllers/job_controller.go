@@ -86,7 +86,7 @@ type JobReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("backupJobName", req.NamespacedName)
-	var backupJob backupv1alpha1.Job
+	var backupJob backupv1alpha1.BackupJob
 	if err := r.Get(ctx, req.NamespacedName, &backupJob); err != nil {
 		logger.Error(err, "failed to find backup job")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -265,7 +265,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.Logger, req ctrl.Request, backupJob *backupv1alpha1.Job) (backupTargets []backupTarget, err error) {
+func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.Logger, req ctrl.Request, backupJob *backupv1alpha1.BackupJob) (backupTargets []backupTarget, err error) {
 	var pvcList v1.PersistentVolumeClaimList
 	if err := r.List(ctx, &pvcList, client.InNamespace(req.Namespace), client.MatchingLabels(backupJob.Spec.Selector.MatchLabels)); err != nil {
 		logger.Error(err, "failed to list pvcs to backup")
@@ -303,7 +303,7 @@ func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.L
 	return
 }
 
-func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.Job, bt backupTarget) (*batch.Job, error) {
+func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.BackupJob, bt backupTarget) (*batch.Job, error) {
 	name := fmt.Sprintf("%s-%s-%d", backupJob.Name, bt.pvc.Name, time.Now().Unix())
 
 	var backupRepo backupv1alpha1.Repo
@@ -493,7 +493,7 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager, opts *JobControllerOp
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&backupv1alpha1.Job{}).
+		For(&backupv1alpha1.BackupJob{}).
 		Owns(&batch.Job{}).
 		Complete(r)
 }

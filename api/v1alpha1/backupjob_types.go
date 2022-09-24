@@ -25,7 +25,7 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // JobSpec defines the desired state of Job
-type JobSpec struct {
+type BackupJobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -58,7 +58,7 @@ type Forget struct {
 }
 
 // JobStatus defines the observed state of Job
-type JobStatus struct {
+type BackupJobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	Running bool `json:"running"`
@@ -78,23 +78,23 @@ type JobStatus struct {
 //+kubebuilder:subresource:status
 
 // Job is the Schema for the jobs API
-type Job struct {
+type BackupJob struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   JobSpec   `json:"spec,omitempty"`
-	Status JobStatus `json:"status,omitempty"`
+	Spec   BackupJobSpec   `json:"spec,omitempty"`
+	Status BackupJobStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
 // JobList contains a list of Job
-type JobList struct {
+type BackupJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Job `json:"items"`
+	Items           []BackupJob `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Job{}, &JobList{})
+	SchemeBuilder.Register(&BackupJob{}, &BackupJobList{})
 }

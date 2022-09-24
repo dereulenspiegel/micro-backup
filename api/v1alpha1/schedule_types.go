@@ -35,8 +35,8 @@ type ScheduleSpec struct {
 	// +optional
 	KeepLastFailed *int `json:"keepLastFailed,omitempty"`
 	// +optional
-	KeepLastSuccessful *int    `json:"keepLastSuccessful,omitempty"`
-	Job                JobSpec `json:"job"`
+	KeepLastSuccessful *int          `json:"keepLastSuccessful,omitempty"`
+	Job                BackupJobSpec `json:"job"`
 }
 
 // ScheduleStatus defines the observed state of Schedule
