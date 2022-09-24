@@ -40,6 +40,10 @@ import (
 	backupv1alpha1 "github.com/dereulenspiegel/micro-backup/api/v1alpha1"
 )
 
+const (
+	AnnotationTagList = "backup.k8s.akuz.de/tags"
+)
+
 var (
 	jobOwnerKey             = ".metadata.controller"
 	apiGVStr                = backupv1alpha1.GroupVersion.String()
@@ -51,7 +55,6 @@ var (
 type JobControllerOptions struct {
 	KubeletPath    string
 	ContainerImage string
-	DefaultCommand string
 }
 
 type backupTarget struct {
@@ -308,7 +311,15 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 		logger.Error(err, "failed to find repo spec referenced in backup job", "repoName", backupJob.Spec.RepoName)
 		return nil, err
 	}
-	command := strings.Split(r.opts.DefaultCommand, " ")
+
+	tagList := strings.Split(bt.pvc.Annotations[AnnotationTagList], ",")
+	resticCmd := []string{"restic backup"}
+	for _, tag := range tagList {
+		resticCmd = append(resticCmd, "--tag", tag)
+	}
+
+	resticCmd = append(resticCmd, "/targetPvc")
+
 	pvcHostPath := fmt.Sprintf(pvcPathPattern, r.opts.KubeletPath, bt.pod.ObjectMeta.UID, bt.pvc.ObjectMeta.UID)
 	backoffLimit := int32(1)
 	runAsNoNRoot := true
@@ -365,7 +376,7 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 						{
 							Name:    "restic",
 							Image:   r.opts.ContainerImage,
-							Command: command,
+							Command: resticCmd,
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "targetPvc",
