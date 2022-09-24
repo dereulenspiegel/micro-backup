@@ -50,7 +50,7 @@ func init() {
 
 func main() {
 	var configFile string
-	var jobControllerOpts controllers.JobControllerOptions
+	var jobControllerOpts controllers.BackupJobControllerOptions
 	flag.StringVar(&configFile, "config", "",
 		"The controller will load its initial configuration from this file. "+
 			"Omit this flag to use the default configuration values. "+
@@ -81,7 +81,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.JobReconciler{
+	if err = (&controllers.BackupJobReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr, &jobControllerOpts); err != nil {

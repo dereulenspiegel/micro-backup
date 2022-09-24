@@ -52,7 +52,7 @@ var (
 	pvcPathPattern = "%s/pods/%s/volumes/kubernetes.io~csi/pvc-%s/mount"
 )
 
-type JobControllerOptions struct {
+type BackupJobControllerOptions struct {
 	KubeletPath    string
 	ContainerImage string
 }
@@ -62,11 +62,11 @@ type backupTarget struct {
 	pvc *v1.PersistentVolumeClaim
 }
 
-// JobReconciler reconciles a Job object
-type JobReconciler struct {
+// BackupJobReconciler reconciles a Job object
+type BackupJobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	opts   *JobControllerOptions
+	opts   *BackupJobControllerOptions
 }
 
 //+kubebuilder:rbac:groups=backup.k8s.akuz.de,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -84,7 +84,7 @@ type JobReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("backupJobName", req.NamespacedName)
 	var backupJob backupv1alpha1.BackupJob
 	if err := r.Get(ctx, req.NamespacedName, &backupJob); err != nil {
@@ -265,7 +265,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.Logger, req ctrl.Request, backupJob *backupv1alpha1.BackupJob) (backupTargets []backupTarget, err error) {
+func (r *BackupJobReconciler) discoverBackupTargets(ctx context.Context, logger logr.Logger, req ctrl.Request, backupJob *backupv1alpha1.BackupJob) (backupTargets []backupTarget, err error) {
 	var pvcList v1.PersistentVolumeClaimList
 	if err := r.List(ctx, &pvcList, client.InNamespace(req.Namespace), client.MatchingLabels(backupJob.Spec.Selector.MatchLabels)); err != nil {
 		logger.Error(err, "failed to list pvcs to backup")
@@ -303,7 +303,7 @@ func (r *JobReconciler) discoverBackupTargets(ctx context.Context, logger logr.L
 	return
 }
 
-func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.BackupJob, bt backupTarget) (*batch.Job, error) {
+func (r *BackupJobReconciler) constructBackupJob(ctx context.Context, logger logr.Logger, backupJob *backupv1alpha1.BackupJob, bt backupTarget) (*batch.Job, error) {
 	name := fmt.Sprintf("%s-%s-%d", backupJob.Name, bt.pvc.Name, time.Now().Unix())
 
 	var backupRepo backupv1alpha1.Repo
@@ -474,7 +474,7 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 // }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager, opts *JobControllerOptions) error {
+func (r *BackupJobReconciler) SetupWithManager(mgr ctrl.Manager, opts *BackupJobControllerOptions) error {
 	r.opts = opts
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batch.Job{}, jobOwnerKey, func(rawObj client.Object) []string {
