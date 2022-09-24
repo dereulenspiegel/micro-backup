@@ -3,7 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/backup.k8s.akuz.de_repos.yaml
-- bases/backup.k8s.akuz.de_jobs.yaml
+- bases/backup.k8s.akuz.de_backupjobs.yaml
 - bases/backup.k8s.akuz.de_schedules.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 

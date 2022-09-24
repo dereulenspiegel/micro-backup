@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: jobs.backup.k8s.akuz.de
+  name: backupjobs.backup.k8s.akuz.de
 spec:
   group: backup.k8s.akuz.de
   names:
-    kind: Job
-    listKind: JobList
-    plural: jobs
-    singular: job
+    kind: BackupJob
+    listKind: BackupJobList
+    plural: backupjobs
+    singular: backupjob
   scope: Namespaced
   versions:
   - name: v1alpha1
