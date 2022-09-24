@@ -497,8 +497,3 @@ func (r *BackupJobReconciler) SetupWithManager(mgr ctrl.Manager, opts *BackupJob
 		Owns(&batch.Job{}).
 		Complete(r)
 }
-
-func remove[T any](sl []T, i int) []T {
-	sl[i] = sl[len(sl)-1]
-	return sl[:len(sl)-1]
-}
