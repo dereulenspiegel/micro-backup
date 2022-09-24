@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -307,6 +308,7 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 		logger.Error(err, "failed to find repo spec referenced in backup job", "repoName", backupJob.Spec.RepoName)
 		return nil, err
 	}
+	command := strings.Split(r.opts.DefaultCommand, " ")
 	pvcHostPath := fmt.Sprintf(pvcPathPattern, r.opts.KubeletPath, bt.pod.ObjectMeta.UID, bt.pvc.ObjectMeta.UID)
 	backoffLimit := int32(1)
 	runAsNoNRoot := true
@@ -363,7 +365,7 @@ func (r *JobReconciler) constructBackupJob(ctx context.Context, logger logr.Logg
 						{
 							Name:    "restic",
 							Image:   r.opts.ContainerImage,
-							Command: []string{r.opts.DefaultCommand},
+							Command: command,
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "targetPvc",
