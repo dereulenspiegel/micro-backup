@@ -1,0 +1,3 @@
+[submodule "csi-driver-host-path"]
+	path = csi-driver-host-path
+	url = https://github.com/kubernetes-csi/csi-driver-host-path.git
